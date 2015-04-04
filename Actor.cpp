@@ -8,13 +8,12 @@
 #include "Actor.h"
 
 
-Actor::Actor(time_t* p_time) {
-	this->epoch = *p_time;
-
+Actor::Actor() {
+	this->shouldRun = true;
 }
 
 Actor::~Actor() {
-	// TODO Auto-generated destructor stub
+	// default destructor
 }
 
 void Actor::sendMessage(int i){

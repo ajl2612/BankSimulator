@@ -26,7 +26,6 @@ private:
 	std::queue<Customer*> p_cQueue;
 
 public:
-
 	int maxDepth;
 	int numTellers;
 	int numTellersClosed;
@@ -36,7 +35,7 @@ public:
 	Securityguard* p_guard;
 
 
-	CustomerQueue(time_t*, pthread_mutex_t*, Teller**, Securityguard*);
+	CustomerQueue(pthread_mutex_t*, int);
 	virtual ~CustomerQueue();
 
 	bool empty();
@@ -45,8 +44,6 @@ public:
 	void pop();
 	void push(Customer*);
 	int getMaxDepth();
-
-	pthread_mutex_t* getMutex();
 
 	static void *runProcess(void*);
 };

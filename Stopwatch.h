@@ -15,10 +15,10 @@ class Teller;
 
 class Stopwatch : public Actor {
 public:
-	Teller* p_teller;
 	int secsWaiting;
+	Teller* p_teller;
 
-	Stopwatch(time_t*);
+	Stopwatch();
 	virtual ~Stopwatch();
 	static void *runProcess(void*);
 	int getSecsWaiting();

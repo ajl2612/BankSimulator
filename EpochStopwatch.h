@@ -13,7 +13,8 @@
 class EpochStopwatch : public Actor {
 public:
 	int secsSinceEpoch;
-	EpochStopwatch(time_t*);
+
+	EpochStopwatch();
 	virtual ~EpochStopwatch();
 	static void *runProcess(void*);
 	int getSecsSinceEpoch();

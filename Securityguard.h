@@ -17,18 +17,16 @@ class CustomerQueue;
 class Securityguard : public Actor {
 public:
 	int numCustomers;
+	bool timeToClose;
 	Customer** p_customers;
 	CustomerQueue* p_custQueue;
 	pthread_mutex_t* mutex;
 	EpochStopwatch* p_esw;
-	bool timeToClose;
 
-	Securityguard(time_t*, CustomerQueue*, pthread_mutex_t*, Customer**, EpochStopwatch* );
+	Securityguard(pthread_mutex_t*);
 	virtual ~Securityguard();
-	int getNumCustomers();
-	Customer* getFirstCustomer();
-
 	static void *runProcess(void*);
+	int getNumCustomers();
 };
 
 #endif /* SECURITYGUARD_H_ */

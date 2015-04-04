@@ -8,16 +8,13 @@
 #ifndef CUSTOMER_H_
 #define CUSTOMER_H_
 
-#include <time.h>	//for using time objects
 #include "EpochStopwatch.h"
-
 
 // customers arrive to the system every X seconds between these limits
 #define C_LOWB			60
 #define C_UPPB			240
 #define MIN_CUST_TIME	30
 #define MAX_CUST_TIME	360
-
 
 class Customer {
 private:
@@ -41,7 +38,6 @@ public:
 
 	int getID();
 
-	Customer();
 	Customer(int, EpochStopwatch*);
 	virtual ~Customer();
 };

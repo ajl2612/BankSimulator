@@ -15,7 +15,7 @@ class Boss : public Actor {
 public:
 	Securityguard* p_guard;
 
-	Boss(time_t*, Securityguard*);
+	Boss();
 	virtual ~Boss();
 
 	static void *runProcess(void*);

@@ -12,22 +12,11 @@
 // units below are in micro seconds for usleep function
 #define	SECONDS_T				1666
 #define MINUTES_T				100000
+#define REAL_SECOND				1000000
 #define	FOR_NEXT_MESSAGE_T		100000
 #define MAX_POSSIBLE_CUSTOMERS	480
 
 #define NUM_TELLERS		3
-
-//note that for this simulation 1 second = 100 ms
-
-#define TIME_EPOCH				0
-#define TIME_OPEN				60
-#define TIME_CLOSE				480
-
-#define TIME_EPOCH				0
-#define DEMO_OPEN				5
-#define DEMO_CLOSE				30
-
-
 
 #define ALL_ACTOR_START			10
 #define ALL_ACTOR_INIT			11

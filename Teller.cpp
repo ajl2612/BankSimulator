@@ -7,13 +7,9 @@
 
 #include "Teller.h"
 
-
-Teller::Teller(time_t* p_time, CustomerQueue* p_cq, int myID) : Actor(p_time) {
-	this->p_custQueue = p_cq;
-	this-> p_custQueue = p_cq;
+Teller::Teller(int myID){
 	this->id = myID;
 	this->timeForBreak = false;
-	this->secsWaitingForCustomers = 0;
 }
 
 Teller::~Teller() {
@@ -26,47 +22,40 @@ void Teller::setCustomer(Customer* p_newCust){
 
 void *Teller::runProcess(void *threadid){
 
-
-
-	srand (time(NULL));
-
 	Teller *self;
 	self = (Teller *) threadid;
 
-	printf("### START RUN PROCESS : TELLER %d\n", self->id);
-
-	int curr_cmd;
-	int range,wait,mins,secs, breakID;
-	bool shouldRun = true;
-	bool bankOpen = false;
+	printf("### START RUN PROCESS TELLER %d\n", self->id);
 
 	srand (time(NULL));
 
+	int range,wait,mins,secs, breakID;
+	bool bankOpen = false;
+
 	self->sendMessage(TEL_ACTOR_START);
-	while( shouldRun ){
+	while( self->shouldRun ){
 		if( self->msgQueue.empty() ){
 			usleep(1*SECONDS_T);
 		}else{
-			curr_cmd = self->msgQueue.front();
+			self->currentState = self->msgQueue.front();
 			self->msgQueue.pop();
 
-			switch(curr_cmd){
+			switch(self->currentState){
 			case TEL_ACTOR_START:
-				printf("TELLER %d     : Arrives at work.\n", self->id);
+				printf("TELLER %d       : Arrives at work.\n", self->id);
 				self->sendMessage(TEL_WAIT_OPEN);
 				break;
 
 			case TEL_WAIT_OPEN:
 
-				printf("TELLER %d     : Waiting for bank doors to open.\n", self->id);
+				printf("TELLER %d       : Waiting for bank doors to open.\n", self->id);
 				usleep(10*SECONDS_T);
 
 				break;
 
 			case TEL_OPEN_BANK:
-				printf("TELLER %d     : Terminal is open and waiting for customers.\n");
+				printf("TELLER %d       : Terminal is open and waiting for customers.\n");
 				bankOpen = true;
-
 
 				//this part of code needs to be changed based on number of tellers
 				switch(self->id){
@@ -88,8 +77,7 @@ void *Teller::runProcess(void *threadid){
 
 			case TEL_SERVE_CUSTOMER:
 				self->p_ssw->sendMessage(SSW_STOP);
-				//self->secsWaitingForCustomers += difftime(time(NULL), self->lastCust);
-				printf( "TELLER %d      : Hello Customer %d.\n",self->id, self->p_cust->getID());
+				printf( "TELLER %d       : Hello Customer %d.\n",self->id, self->p_cust->getID());
 				self->p_cust->startTeller();
 				range = MAX_CUST_TIME - MIN_CUST_TIME + 1;
 				wait = ((rand() % (range ) )+ MIN_CUST_TIME);
@@ -97,20 +85,13 @@ void *Teller::runProcess(void *threadid){
 				secs = wait%60;
 
 				usleep(wait*SECONDS_T);
-				if(secs<10){
-					printf( "TELLER %d      : Customer %d completed transactions in %d:0%d minutes.\n",self->id, self->p_cust->getID(),mins, secs);
-				}
-				else{
-					printf( "TELLER %d      : Customer %d completed transactions in %d:%d minutes.\n",self->id, self->p_cust->getID(),mins, secs);
-				}
-				self->p_cust->endTeller();
+				printf( "TELLER %d       : Customer %d completed transactions in %d:%.2d minutes.\n",self->id, self->p_cust->getID(),mins, secs);
 
+				self->p_cust->endTeller();
 				self->sendMessage(TEL_CHECK_BREAK);
-				self->lastCust = time(NULL);
 				break;
 
 			case TEL_CHECK_BREAK:
-
 				if( self->timeForBreak){
 					range = MAX_TEL_BREAK - MIN_TEL_BREAK + 1;
 					wait = ((rand() % (range ) )+ MIN_TEL_BREAK);
@@ -123,10 +104,10 @@ void *Teller::runProcess(void *threadid){
 
 
 					if(secs<10){
-						printf( "TELLER %d      : %s back in %d:0%d minutes.\n", self->id, e.c_str(), mins, secs);
+						printf( "TELLER %d       : %s back in %d:0%d minutes.\n", self->id, e.c_str(), mins, secs);
 					}
 					else{
-						printf( "TELLER %d      : %s back in %d:%d minutes.\n", self->id, e.c_str(), mins, secs);
+						printf( "TELLER %d       : %s back in %d:%d minutes.\n", self->id, e.c_str(), mins, secs);
 					}
 
 					usleep(wait*SECONDS_T);
@@ -134,8 +115,6 @@ void *Teller::runProcess(void *threadid){
 					self->timeForBreak = false;
 					self->p_bsw->sendMessage(BSW_START);
 				}
-
-
 
 				switch(self->id){
 				case 0:
@@ -155,29 +134,21 @@ void *Teller::runProcess(void *threadid){
 
 				break;
 
-
-//			case TEL_CAN_BREAK:
-//				printf("TELLER %d       : FIX BREAK TEXT\n");
-//				self->timeForBreak = true;
-//				break;
-
 			case TEL_CLOSE_TERMINAL:
-				//self->secsWaitingForCustomers += difftime(time(NULL), self->lastCust);
-				printf("TELLER %d      : Cashing out my terminal.\n", self->id);
+				printf("TELLER %d       : Cashing out my terminal.\n", self->id);
 				self->p_bsw->sendMessage(BSW_SHUTDOWN);
 				self->p_ssw->sendMessage(SSW_SHUTDOWN);
-				shouldRun = false;
+				self->shouldRun = false;
 				break;
 
 			default:
-				printf("TELLER %d       : INVALID MESSAGE CODE :%d\n",curr_cmd);
+				printf("TELLER %d        : INVALID MESSAGE CODE :%d\n",self->currentState);
 				break;
-
 			}
 		}
 	}
-	printf("TELLER%d       : I'm going home. See you all tomorrow.\n", self->id);
-	printf("### END RUN PROCESS : TELLER %d\n", self->id);
+	printf("TELLER%d        : I'm going home. See you all tomorrow.\n", self->id);
+	printf("### END RUN PROCESS TELLER %d\n", self->id);
 	pthread_exit(NULL);
 }
 

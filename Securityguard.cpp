@@ -9,80 +9,61 @@
 
 using namespace std;
 
-Securityguard::Securityguard(time_t* p_time, CustomerQueue* p_cq, pthread_mutex_t* p_mutex, Customer** p_customerList, EpochStopwatch* p_epoch ) : Actor( p_time ) {
-	this->p_customers = p_customerList;
-	this->p_custQueue = p_cq;
+Securityguard::Securityguard(pthread_mutex_t* p_mutex){
 	this->numCustomers = 0;
-	this->mutex = p_mutex;
-	this->p_esw = p_epoch;
 	this->timeToClose = false;
+	this->mutex = p_mutex;
 }
 
 Securityguard::~Securityguard() {
-	// TODO Auto-generated destructor stub
+	// default destructor
 }
 
 int Securityguard::getNumCustomers(){
 	return this->numCustomers;
 }
 
-Customer* Securityguard::getFirstCustomer(){
-	return this->p_customers[0];
-}
-
 void *Securityguard::runProcess(void *threadid){
 
-	printf("### START RUN PROCESS : SECURITYGUARD\n");
-
-	srand (time(NULL));
-
-
-
-	Customer* p_newCust;
 	Securityguard *self;
 	self = (Securityguard *) threadid;
 
-	int curr_cmd;
-	bool shouldRun = true;
-	double curr_time;
+	printf("### START RUN PROCESS SECURITYGUARD\n");
+
+	Customer* p_newCust;
+
+	srand (time(NULL));
 
 	self->sendMessage(SEC_ACTOR_START);
-	while( shouldRun ){
+	while( self->shouldRun ){
 		if( self->msgQueue.empty() ){
 			usleep(1*SECONDS_T);
 		}else{
-			curr_cmd = self->msgQueue.front();
+			self->currentState = self->msgQueue.front();
 			self->msgQueue.pop();
 
-			switch(curr_cmd){
+			switch(self->currentState){
 			case SEC_ACTOR_START:
-				printf("SECURITYGUARD : Arrives at work.\n");
+				printf("SECURITYGUARD  : Arrives at work.\n");
 				self->sendMessage(SEC_WAIT_OPEN);
 				break;
 
 			case SEC_WAIT_OPEN:
 
-				printf("SECURITYGUARD : Waiting to open bank doors.\n");
+				printf("SECURITYGUARD  : Waiting to open bank doors.\n");
 				usleep(10*SECONDS_T);
 
 				break;
 
 			case SEC_OPEN_BANK:
-				printf("SECURITYGUARD : The bank doors are open.\n");
+				printf("SECURITYGUARD  : The bank doors are open.\n");
 				self->p_custQueue->sendMessage(CQU_OPEN_BANK);
 				self->sendMessage(SEC_GREET_CUSTOMERS);
 
 				break;
 
 			case SEC_GREET_CUSTOMERS:
-				/*
-				 * Get the current time. If it is not time to close the bank,
-				 * greet a new customer and direct them to the queue.
-				 *
-				 * If it is time to close the bank, signal so.
-				 */
 
-				curr_time = difftime( time(0), self->epoch );
 				if( !self->timeToClose ){
 
 
@@ -97,7 +78,7 @@ void *Securityguard::runProcess(void *threadid){
 					}
 					pthread_mutex_unlock(self->mutex);
 					self->numCustomers++;
-					printf("SECURITYGUARD : Hello customer %d, step this way.\n", p_newCust->getID());
+					printf("SECURITYGUARD  : Hello customer %d, step this way.\n", p_newCust->getID());
 
 					//wait a random amount of time for the next customer
 
@@ -106,12 +87,7 @@ void *Securityguard::runProcess(void *threadid){
 					int mins = wait/60;
 					int secs = wait%60;
 
-					if(secs<10){
-						printf( "SECURITYGUARD : Next customer arrives %d:0%d minutes later.\n",mins, secs);
-					}
-					else{
-						printf( "SECURITYGUARD : Next customer arrives %d:%d minutes later.\n",mins, secs);
-					}
+					printf( "SECURITYGUARD  : Next customer arrives %d:%.2d minutes later.\n",mins, secs);
 					usleep(wait*SECONDS_T);
 
 					self->sendMessage(SEC_GREET_CUSTOMERS);
@@ -122,35 +98,31 @@ void *Securityguard::runProcess(void *threadid){
 				break;
 
 			case SEC_SIGNAL_CLOSE:
-
 				self->timeToClose = true;
 				self->p_custQueue->sendMessage(CQU_SIGNAL_CLOSE);
 				break;
 
 			case SEC_WAIT_CLOSE:
 				//Wait to close bank until customer queue is empty.
-				printf("SECURITYGUARD : Waiting to close bank doors.\n");
-				usleep(10*SECONDS_T);
+				printf("SECURITYGUARD  : Waiting to close bank doors.\n");
+				usleep(1*SECONDS_T);
 				self->sendMessage(SEC_WAIT_CLOSE);
-
-
-				//break;
+				break;
 
 			case SEC_CLOSE_BANK:
-				printf("SECURITYGUARD : The bank door is closed.\n");
-				shouldRun = false;
-				//self->p_custQueue->sendMessage(CQU_CLOSE_BANK);
+				printf("SECURITYGUARD  : The bank door is closed.\n");
+				self->shouldRun = false;
+				self->p_esw->sendMessage(ESW_SHUTDOWN);
 				break;
 
 			default:
-				printf("SECURITYGUARD : INVALID MESSAGE CODE :%d\n",curr_cmd);
+				printf("SECURITYGUARD  : INVALID MESSAGE CODE :%d\n",self->currentState);
 				break;
-
 			}
 		}
 	}
-	printf("SECURITYGUARD : I'm going home. See you all tomorrow.\n");
-	printf("### END RUN PROCESS : SECURITYGUARD\n");
+	printf("SECURITYGUARD  : I'm going home. See you all tomorrow.\n");
+	printf("### END RUN PROCESS SECURITYGUARD\n");
 	pthread_exit(NULL);
 }
 

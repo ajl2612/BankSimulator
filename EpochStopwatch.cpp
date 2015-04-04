@@ -7,7 +7,7 @@
 
 #include "EpochStopwatch.h"
 
-EpochStopwatch::EpochStopwatch(time_t* p_time) : Actor(p_time)  {
+EpochStopwatch::EpochStopwatch(){
 	this->secsSinceEpoch = 0;
 }
 
@@ -25,44 +25,40 @@ void *EpochStopwatch::runProcess(void *threadid){
 	EpochStopwatch *self;
 	self = (EpochStopwatch *) threadid;
 
-	printf("### START RUN PROCESS : EPOCH STOPWATCH\n");
-	int curr_cmd;
-	bool shouldRun = true;
+	printf("### START RUN PROCESS EPOCH STOPWATCH\n");
 
 	self->sendMessage(ESW_ACTOR_START);
-	while( shouldRun ){
+	while( self->shouldRun ){
 		if( self->msgQueue.empty() ){
 			usleep(1*SECONDS_T);
 		}else{
-			curr_cmd = self->msgQueue.front();
+			self->currentState = self->msgQueue.front();
 			self->msgQueue.pop();
 
-			switch(curr_cmd){
+			switch(self->currentState){
 			case ESW_ACTOR_START:
-				printf("EPOCH STOPWATCH   : Epoch time enabled.\n");
+				printf("EPOCH STOPWATCH: Epoch time enabled.\n");
 				self->sendMessage(ESW_TICK);
 				break;
 
 			case ESW_TICK:
 				self->secsSinceEpoch++;
 				usleep(1*SECONDS_T);
-				self->sendMessage(SSW_TICK);
+				self->sendMessage(ESW_TICK);
 				break;
 
 			case ESW_SHUTDOWN:
-				printf("EPOCH STOPWATCH   : Epoch time disabled.\n");
-				shouldRun = false;
+				printf("EPOCH STOPWATCH: Epoch time disabled.\n");
+				self->shouldRun = false;
 				break;
-
 
 			default:
-				printf("EPOCH STOPWATCH : INVALID MESSAGE CODE :%d\n", curr_cmd);
+				printf("EPOCH STOPWATCH: INVALID MESSAGE CODE :%d\n", self->currentState);
 				break;
-
 			}
 		}
 	}
-	printf("EPOCH STOPWATCH : Epoch time turned off.\n");
-	printf("### END RUN PROCESS : EPOCH STOPWATCH\n");
+	printf("EPOCH STOPWATCH: Epoch time turned off.\n");
+	printf("### END RUN PROCESS EPOCH STOPWATCH\n");
 	pthread_exit(NULL);
 }

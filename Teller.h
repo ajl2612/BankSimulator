@@ -31,21 +31,16 @@ class Stopwatch;
 
 class Teller : public Actor{
 public:
+	int id;
+	bool timeForBreak;
 
 	Customer* p_cust;
 	CustomerQueue* p_custQueue;
-	time_t lastCust;
 	BreakStopwatch* p_bsw;
 	Stopwatch* p_ssw;
-
 	static const string excuses[];
 
-	int id;
-	bool timeToClose;
-	bool timeForBreak;
-	double secsWaitingForCustomers;
-
-	Teller(time_t*, CustomerQueue*, int);
+	Teller(int);
 	virtual ~Teller();
 	void setCustomer( Customer*);
 	static void *runProcess(void*);

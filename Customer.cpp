@@ -7,18 +7,17 @@
 
 #include "Customer.h"
 
-Customer::Customer() {
-	this-> customer_ID = -1;
-}
-
-
 Customer::Customer(int id, EpochStopwatch* p_epoch) {
 	this-> customer_ID = id;
+	this->enter_queue = 0;
+	this->leave_queue = 0;
+	this->start_teller = 0;
+	this->end_teller = 0;
 	this->p_esw = p_epoch;
 }
 
 Customer::~Customer() {
-	// TODO Auto-generated destructor stub
+	// default constrctor
 }
 
 void Customer::enterQueue(){

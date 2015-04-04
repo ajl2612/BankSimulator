@@ -17,9 +17,8 @@ class Teller;
 class BreakStopwatch : public Actor  {
 public:
 	Teller* p_teller;
-	//int num;
 
-	BreakStopwatch(time_t*);
+	BreakStopwatch();
 	virtual ~BreakStopwatch();
 	static void *runProcess(void*);
 };

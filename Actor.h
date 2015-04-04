@@ -11,7 +11,6 @@
 #include <queue>
 #include <pthread.h>
 #include <stdlib.h>
-#include <time.h>		// for using time object
 #include <unistd.h>		//for using usleep
 
 #include "Messages.h"
@@ -20,11 +19,11 @@ using namespace std;
 
 class Actor {
 public:
-	time_t epoch;
 	queue<int> msgQueue;
 	int currentState;
+	bool shouldRun;
 
-	Actor(time_t*);
+	Actor();
 	virtual ~Actor();
 
 	static void *runProcess(void*);

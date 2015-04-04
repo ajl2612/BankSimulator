@@ -9,8 +9,14 @@
 
 using namespace std;
 
-CustomerQueue::CustomerQueue(time_t* p_time, pthread_mutex_t* p_mutex) : Actor(p_time) {
+CustomerQueue::CustomerQueue(time_t* p_time, pthread_mutex_t* p_mutex, Teller** p_tellList, Securityguard* p_secguard) : Actor(p_time) {
 	this->mutex = p_mutex;
+	this->maxDepth = 0;
+	this->numTellers = 0;
+	this->numTellersClosed = 0;
+	this->p_tellers = p_tellList;
+	this->timeToClose = false;
+	this->p_guard = p_secguard;
 }
 
 CustomerQueue::~CustomerQueue() {
@@ -56,17 +62,23 @@ void *CustomerQueue::runProcess(void *threadid){
 
 	printf("### START RUN PROCESS : CUSTOMER QUEUE\n");
 
+
+
 	CustomerQueue *self;
 	self = (CustomerQueue *) threadid;
+
+	printf("### num customers %d \n", self->p_guard->numCustomers);
 
 	int curr_cmd;
 	bool shouldRun = true;
 	bool bankOpen = false;
-	double curr_time;
+	Customer* p_next;
+	int iter;
 
+	self->sendMessage(CQU_ACTOR_START);
 	while( shouldRun ){
 		if( self->msgQueue.empty() ){
-			usleep(FOR_NEXT_MESSAGE_T);
+			usleep(1*SECONDS_T);
 		}else{
 			curr_cmd = self->msgQueue.front();
 			self->msgQueue.pop();
@@ -91,41 +103,128 @@ void *CustomerQueue::runProcess(void *threadid){
 
 			case CQU_OPEN_BANK:
 				printf("CUSTOMERQUEUE : The queue is signaled to open.\n");
+				for(iter = 0; iter<NUM_TELLERS;iter++){
+					self->p_tellers[iter]->sendMessage(TEL_OPEN_BANK);
+				}
 				bankOpen = true;
 				break;
 
 			case CQU_WAIT_CLOSE:
 				//Wait to close bank until customer queue is empty and signal from security guard recieved.
 
-				if( bankOpen || ( !self->p_cQueue.empty() ) ){
+				if( !(self->timeToClose) || ( !self->p_cQueue.empty()) || (self->numTellersClosed != NUM_TELLERS ) ){
 					usleep(1*SECONDS_T);
 					self->sendMessage(CQU_WAIT_CLOSE);
 				}else{
-					printf("CUSTOMERQUEUE : Closing queue.\n");
-					shouldRun = false;
+					//do nothing
 				}
-				/*
-				printf("CUSTOMERQUEUE : Waiting for bank to close.\n");
-				if( !self->p_cQueue.empty()){
-					printf("CUSTOMERQUEUE : Can not close queue while it contains customers.\n");
-					usleep(1*SECONDS_T);
-					self->sendMessage(CQU_WAIT_CLOSE);
-				}
-				else if( bankOpen ){
-					printf("CUSTOMERQUEUE : Awaiting shutdown signal from Security Guard.\n");
-					usleep(1*SECONDS_T);
-					self->sendMessage(CQU_WAIT_CLOSE);
-				}
-				else{
-					printf("CUSTOMERQUEUE : Closing queue.\n");
-					shouldRun = false;
-				}
-				*/
 				break;
 
-			case CQU_CLOSE_BANK:
+			case CQU_SERVE_TEL0:
+				pthread_mutex_lock(self->mutex);
+				if( !self->p_cQueue.empty() ){
+					//people in queue need to be processed.
+					p_next = self->p_cQueue.front();
+					self->p_cQueue.pop();
+
+					printf("CUSTOMERQUEUE : Sending customer %d to Teller 1.\n", p_next->getID());
+					p_next->leaveQueue();
+					self->p_tellers[0]->setCustomer(p_next);
+					self->p_tellers[0]->sendMessage(TEL_SERVE_CUSTOMER);
+					pthread_mutex_unlock(self->mutex);
+
+				}else{
+					pthread_mutex_unlock(self->mutex);
+					if(!(self->timeToClose)){
+						//queue is empty but bank is still open. delay 10 seconds to avoid deadlock resend the message to self to preserve it.
+						usleep(TELL_RESEND_DELAY*SECONDS_T);
+						self->sendMessage(CQU_SERVE_TEL0);
+					}else{
+						//bank is closed and queue is empty, send this teller home.
+						self->p_tellers[0]->sendMessage(TEL_CLOSE_TERMINAL);
+						self->numTellersClosed++;
+						printf("%d tellers told to close\n", self->numTellersClosed);
+						if(self->numTellersClosed == NUM_TELLERS ){
+							self->sendMessage(CQU_CLOSE_QUEUE);
+						}
+					}
+				}
+				break;
+
+			case CQU_SERVE_TEL1:
+				pthread_mutex_lock(self->mutex);
+				if( !self->p_cQueue.empty() ){
+					//people in queue need to be processed.
+					p_next = self->p_cQueue.front();
+					self->p_cQueue.pop();
+
+					printf("CUSTOMERQUEUE : Sending customer %d to Teller 2.\n", p_next->getID());
+					p_next->leaveQueue();
+					self->p_tellers[1]->setCustomer(p_next);
+					self->p_tellers[1]->sendMessage(TEL_SERVE_CUSTOMER);
+					pthread_mutex_unlock(self->mutex);
+
+				}else{
+					pthread_mutex_unlock(self->mutex);
+					if(!(self->timeToClose)){
+						//queue is empty but bank is still open. delay 10 seconds to avoid deadlock resend the message to self to preserve it.
+						usleep(TELL_RESEND_DELAY*SECONDS_T);
+						self->sendMessage(CQU_SERVE_TEL1);
+					}else{
+						//bank is closed and queue is empty, send this teller home.
+						self->p_tellers[1]->sendMessage(TEL_CLOSE_TERMINAL);
+						self->numTellersClosed++;
+						printf("%d tellers told to close\n", self->numTellersClosed);
+						if(self->numTellersClosed == NUM_TELLERS ){
+							self->sendMessage(CQU_CLOSE_QUEUE);
+						}
+					}
+				}
+			break;
+
+			case CQU_SERVE_TEL2:
+				pthread_mutex_lock(self->mutex);
+				if( !self->p_cQueue.empty() ){
+				//people in queue need to be processed.
+				p_next = self->p_cQueue.front();
+				self->p_cQueue.pop();
+
+				printf("CUSTOMERQUEUE : Sending customer %d to Teller 3.\n", p_next->getID());
+				p_next->leaveQueue();
+				self->p_tellers[2]->setCustomer(p_next);
+				self->p_tellers[2]->sendMessage(TEL_SERVE_CUSTOMER);
+				pthread_mutex_unlock(self->mutex);
+
+				}else{
+				pthread_mutex_unlock(self->mutex);
+					if(!(self->timeToClose)){
+						//queue is empty but bank is still open. delay 10 seconds to avoid deadlock resend the message to self to preserve it.
+						usleep(TELL_RESEND_DELAY*SECONDS_T);
+						self->sendMessage(CQU_SERVE_TEL2);
+					}else{
+						//bank is closed and queue is empty, send this teller home.
+						self->p_tellers[2]->sendMessage(TEL_CLOSE_TERMINAL);
+						self->numTellersClosed++;
+						printf("%d tellers told to close\n", self->numTellersClosed);
+						if(self->numTellersClosed == NUM_TELLERS ){
+							self->sendMessage(CQU_CLOSE_QUEUE);
+						}
+					}
+				}
+				break;
+
+			case CQU_SIGNAL_CLOSE:
 				printf("CUSTOMERQUEUE : Queue signaled to close.\n");
 				bankOpen = false;
+				self->timeToClose = true;
+				break;
+
+			case CQU_CLOSE_QUEUE:
+				printf("CUSTOMERQUEUE : Closing queue.\n");
+				shouldRun = false;
+				printf("CUSTOMERQUEUE : pre send guard.\n");
+				//self->p_guard->sendMessage(SEC_CLOSE_BANK);
+				printf("CUSTOMERQUEUE : post send guard.\n");
 				break;
 
 			default:

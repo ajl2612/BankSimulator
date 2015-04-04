@@ -10,99 +10,131 @@
 #include "Securityguard.h"
 #include "Teller.h"
 #include "Messages.h"
-
-#define	SECONDS_T		1000000
-#define NUM_THREADS     5
-#define NUM_TELLERS		3
+#include "Boss.h"
+#include "BreakStopwatch.h"
+#include "Stopwatch.h"
 
 using namespace std;
 
-void *demoProcess(void *threadid){
-
-	printf("### START RUN PROCESS : SECURITYGUARD\n");
-
-	Securityguard *self;
-	self = (Securityguard *) threadid;
-
-
-
-	printf("### BEFORE FOR\n");
-	bool shouldRun = true;
-	double duration;
-
-	while( shouldRun ){
-
-		duration = difftime( time(0), self->epoch );
-		printf( "Time Difference : %f\n", duration);
-		if( duration < 10){
-			usleep(1*SECONDS_T);
-		}
-		else{
-			shouldRun = false;
-		}
-	}
-	pthread_exit(NULL);
-}
-
-
 int main(int argc, char *argv[]) {
 	cout << "Welcome to the QNX Momentics IDE 1" << endl;
-
-	Customer* allCustomers[MAX_POSSIBLE_CUSTOMERS];
-
+	int iter;
 
 	pthread_mutex_t mutex;
 	int pthread_mutex_init(pthread_mutex_t* mutex,const pthread_mutexattr_t* attr );
 
-	CustomerQueue* p_cQueue;
-
 	time_t start;
 	start = time(0);
 
-	Teller* tellers[NUM_TELLERS];
-	int iter;
+	//Allocate pointers for all used objects/threads
+	CustomerQueue* p_cQueue;
+	Securityguard* p_guard;
+	Boss* p_boss;
+	Teller* p_tellers[NUM_TELLERS];
+	BreakStopwatch* p_bwatches[NUM_TELLERS];
+	Stopwatch* p_swatches[NUM_TELLERS];
+	Customer* p_allCustomers[MAX_POSSIBLE_CUSTOMERS];
+	EpochStopwatch* p_esw;
+
+
+	//instantiate all used objects/threads
+
+	//replace here
+	p_esw = new EpochStopwatch(&start);
+
+
+	p_cQueue = new CustomerQueue(&start, &mutex, p_tellers, 0);
+	p_guard = new Securityguard(&start, p_cQueue, &mutex, p_allCustomers, p_esw);
+	p_boss = new Boss(&start, p_guard);
+
+
 	for(iter = 0; iter < NUM_TELLERS; iter++){
-		tellers[iter] = new Teller(&start);
+		p_tellers[iter] = new Teller(&start, p_cQueue, iter);
+		p_bwatches[iter] = new BreakStopwatch(&start);
+		p_swatches[iter] = new Stopwatch(&start);
+
+		p_tellers[iter]->p_bsw = p_bwatches[iter];
+		p_tellers[iter]->p_ssw = p_swatches[iter];
+
+		p_bwatches[iter]->p_teller = p_tellers[iter];
+		p_swatches[iter]->p_teller = p_tellers[iter];
 	}
 
-	p_cQueue = new CustomerQueue(&start, &mutex);
+	// assign all inter-object links
 
-	Securityguard* p_guard;
-	p_guard = new Securityguard(&start, p_cQueue, &mutex, allCustomers);
+	// replace here
+
+	//printf("Teller 1 ID:%d stopwatch 1 ID: %d Bstopwatch 1 ID : %d \n", p_tellers[0]->id, p_swatches[0]->p_teller->id, p_bwatches[0]->p_teller->id  );
+
+	// temp bug fix, to avoid garbage being set to p_guard value in CustomerQueue constructor;
+	p_cQueue->p_guard = p_guard;
 
 
-	int rc;
-	pthread_t guardRunner;
+	// allocate all pthread runner threads
 	pthread_t queueRunner;
+	pthread_t guardRunner;
+	pthread_t bossRunner;
+	pthread_t tellRunners[NUM_TELLERS];
+	pthread_t bWatchRunners[NUM_TELLERS];
+	pthread_t sWatchRunners[NUM_TELLERS];
 
+
+	// execute all pthread runner threads
+	int rc;
 	rc = pthread_create(&guardRunner, NULL, Securityguard::runProcess, (void *)p_guard);
-	//rc = pthread_create(&guardRunner, NULL, demoProcess, (void *)g);
 	if (rc){
 		cout << "Error:unable to create SecurityGuard thread," << rc << endl;
 		exit(-1);
 	}
 
 	rc = pthread_create(&queueRunner, NULL, CustomerQueue::runProcess, (void *)p_cQueue);
-	//rc = pthread_create(&guardRunner, NULL, demoProcess, (void *)g);
 	if (rc){
-		cout << "Error:unable to create SecurityGuard thread," << rc << endl;
+		cout << "Error:unable to create CustomerQueue thread," << rc << endl;
 		exit(-1);
 	}
 
-	pthread_join(guardRunner, 0);
-	pthread_join(queueRunner, 0);
+	rc = pthread_create(&bossRunner, NULL, Boss::runProcess, (void *)p_boss);
+	if (rc){
+		cout << "Error:unable to create Boss thread," << rc << endl;
+		exit(-1);
+	}
 
-
-	printf("\n### PRINTING SYSTEM STATISTICS ###\n\n");
-
-	int numCustomers = p_guard->getNumCustomers();
-
-	for(iter = 0; iter < numCustomers; iter++){
-		printf("%d\n", allCustomers[iter]->getID());
+	for(iter = 0; iter < NUM_TELLERS; iter++){
+		rc = pthread_create(&tellRunners[iter], NULL, Teller::runProcess, (void *)p_tellers[iter]);
+		if (rc){
+			cout << "Error:unable to create Teller thread," << rc << endl;
+			exit(-1);
+		}
+		rc = pthread_create(&bWatchRunners[iter], NULL, BreakStopwatch::runProcess, (void *)p_bwatches[iter]);
+		if (rc){
+			cout << "Error:unable to create BreakStopWatch thread," << rc << endl;
+			exit(-1);
+		}
+		rc = pthread_create(&sWatchRunners[iter], NULL, Stopwatch::runProcess, (void *)p_swatches[iter]);
+		if (rc){
+			cout << "Error:unable to create StopWatch thread," << rc << endl;
+			exit(-1);
+		}
 	}
 
 
+	// wait for all threads to complete
+	pthread_join(bossRunner, 0);
+	pthread_join(guardRunner, 0);
+	pthread_join(queueRunner, 0);
+	for(iter=0; iter<NUM_TELLERS;iter++){
+		pthread_join(tellRunners[iter], 0);
+		pthread_join(bWatchRunners[iter], 0);
+		pthread_join(sWatchRunners[iter], 0);
+	}
+
+	// post system statistics calculation and display begins here
+	printf("\n### PRINTING SYSTEM STATISTICS ###\n\n");
+
 	printf("\n	...beep boop I'm a computer...\n\n");
+	for(iter = 0; iter < NUM_TELLERS; iter++){
+		printf("Teller %d waited %d seconds\n", p_tellers[iter]->id, p_tellers[iter]->p_ssw->secsWaiting);
+	}
 
 
 	printf("\n### PRINTING SYSTEM STATISTICS ###\n\n");
@@ -116,60 +148,5 @@ int main(int argc, char *argv[]) {
 	printf("MAX CUSTOMER QUEUE DEPTH			: %d\n", p_cQueue->getMaxDepth());
 
 
-	/**
-	for(int i = 0; i<NUM_THREADS; i++){
-		c = new Customer(i);
-		cust_arr[i] = c;
-		cQueue->push(c);
-	}
-
-	printf("BEFORE Queue Size : %d\n",cQueue->size());
-	printf("BEFORE Is Empty : %d\n",cQueue->empty());
-
-	for(int i = 0; i<NUM_THREADS; i++){
-		c = cQueue->front();
-		cQueue->pop();
-
-		printf("Current Customer : %d\n",c->getID());
-		printf("Queue Size : %d\n",cQueue->size());
-	}
-
-	printf("AFTER Queue Size : %d\n",cQueue->size());
-	printf("AFTER Is Empty : %d\n",cQueue->empty());
-
-
-	pthread_t threads[NUM_THREADS];
-	int rc;
-	int i;
-	for( i=0; i < NUM_THREADS; i++ ){
-		cout << "main() : creating thread, " << i << endl;
-		rc = pthread_create(&threads[i], NULL, CustomerQueue::runProcess, (void *)cust_arr[i]);
-		if (rc){
-			cout << "Error:unable to create thread," << rc << endl;
-			exit(-1);
-		}
-	}
-	pthread_exit(NULL);
-	**/
-
-	/**
-	time_t start;
-	time_t end;
-
-	double duration;
-
-
-	start = time(NULL);
-	usleep(10000);
-	end = time(NULL);
-
-
-
-
-	duration = difftime( end, start ) *1000;
-
-	printf("Printing timers\n");
-	cout << duration << endl;
-**/
 	return EXIT_SUCCESS;
 }

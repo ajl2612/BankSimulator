@@ -8,8 +8,17 @@
 #ifndef CUSTOMERQUEUE_H_
 #define CUSTOMERQUEUE_H_
 
+
+
 #include "Customer.h"
 #include "Actor.h"
+#include "Teller.h"
+#include "Securityguard.h"
+
+#define TELL_RESEND_DELAY	1
+
+class Teller;
+class Securityguard;
 
 class CustomerQueue : public Actor {
 private:
@@ -20,9 +29,14 @@ public:
 
 	int maxDepth;
 	int numTellers;
+	int numTellersClosed;
+	bool timeToClose;
+
+	Teller** p_tellers;
+	Securityguard* p_guard;
 
 
-	CustomerQueue(time_t*, pthread_mutex_t*);
+	CustomerQueue(time_t*, pthread_mutex_t*, Teller**, Securityguard*);
 	virtual ~CustomerQueue();
 
 	bool empty();

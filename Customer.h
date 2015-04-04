@@ -9,35 +9,40 @@
 #define CUSTOMER_H_
 
 #include <time.h>	//for using time objects
+#include "EpochStopwatch.h"
 
 
-// customers arrive to the system every X minutes between these limits
-#define C_LOWB	1
-#define C_UPPB	4
+// customers arrive to the system every X seconds between these limits
+#define C_LOWB			60
+#define C_UPPB			240
+#define MIN_CUST_TIME	30
+#define MAX_CUST_TIME	360
 
 
 class Customer {
 private:
 	int customer_ID;
-	time_t enter_queue;
-	time_t leave_queue;
-	time_t start_teller;
-	time_t end_teller;
+	int enter_queue;
+	int leave_queue;
+	int start_teller;
+	int end_teller;
+	EpochStopwatch* p_esw;
+
 public:
 	void enterQueue();
 	void leaveQueue();
 	void startTeller();
 	void endTeller();
 
-	time_t getEnterQueue();
-	time_t getLeaveQueue();
-	time_t getStartTeller();
-	time_t getEndTeller();
+	int getEnterQueue();
+	int getLeaveQueue();
+	int getStartTeller();
+	int getEndTeller();
 
 	int getID();
 
 	Customer();
-	Customer(int);
+	Customer(int, EpochStopwatch*);
 	virtual ~Customer();
 };
 

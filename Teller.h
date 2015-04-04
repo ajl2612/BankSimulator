@@ -8,19 +8,46 @@
 #ifndef TELLER_H_
 #define TELLER_H_
 
+#define BREAK_MIN_T			1800
+#define BREAK_MAX_T			3600
+#define CUSTOMER_MIN_T		30
+#define CUSTOMER_MAX_T		360
+#define	NUM_EXCUSES 		80
+
+class CustomerQueue;
+class BreakStopwatch;
+class Stopwatch;
+
 #include "Customer.h"
 #include "Actor.h"
+#include "CustomerQueue.h"
+#include "BreakStopwatch.h"
+#include "Stopwatch.h"
+#include <string>
+
+#define MIN_TEL_BREAK	60
+#define MAX_TEL_BREAK	240
+#define NUM_EXCUSES		80
 
 class Teller : public Actor{
-private:
-	Customer* p_cust;
-	time_t lastCust;
-	double workTime;
-
 public:
-	Teller(time_t*);
+
+	Customer* p_cust;
+	CustomerQueue* p_custQueue;
+	time_t lastCust;
+	BreakStopwatch* p_bsw;
+	Stopwatch* p_ssw;
+
+	static const string excuses[];
+
+	int id;
+	bool timeToClose;
+	bool timeForBreak;
+	double secsWaitingForCustomers;
+
+	Teller(time_t*, CustomerQueue*, int);
 	virtual ~Teller();
-	void setCustomer( Customer* );
+	void setCustomer( Customer*);
 	static void *runProcess(void*);
 };
 

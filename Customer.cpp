@@ -12,8 +12,9 @@ Customer::Customer() {
 }
 
 
-Customer::Customer(int id) {
+Customer::Customer(int id, EpochStopwatch* p_epoch) {
 	this-> customer_ID = id;
+	this->p_esw = p_epoch;
 }
 
 Customer::~Customer() {
@@ -21,34 +22,34 @@ Customer::~Customer() {
 }
 
 void Customer::enterQueue(){
-	time(&enter_queue);
+	enter_queue = p_esw->getSecsSinceEpoch();
 }
 
 void Customer::leaveQueue(){
-	time(&leave_queue);
+	leave_queue = p_esw->getSecsSinceEpoch();
 }
 
 void Customer::startTeller(){
-	time(&start_teller);
+	start_teller = p_esw->getSecsSinceEpoch();
 }
 
 void Customer::endTeller(){
-	time(&end_teller);
+	end_teller = p_esw->getSecsSinceEpoch();
 }
 
-time_t Customer::getEnterQueue(){
+int Customer::getEnterQueue(){
 	return enter_queue;
 }
 
-time_t Customer::getLeaveQueue(){
+int Customer::getLeaveQueue(){
 	return leave_queue;
 }
 
-time_t Customer::getStartTeller(){
+int Customer::getStartTeller(){
 	return start_teller;
 }
 
-time_t Customer::getEndTeller(){
+int Customer::getEndTeller(){
 	return end_teller;
 }
 
